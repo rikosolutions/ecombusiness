@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://3.85.211.188"; // update if backend runs elsewhere
+const API_BASE_URL = "https://businessapi.lateshipment.com"; // update if backend runs elsewhere
 
 // Create axios instance
 const api = axios.create({

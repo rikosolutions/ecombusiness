@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://127.0.0.1:8000"; // update if backend runs elsewhere
+const API_BASE_URL = "http://3.85.211.188"; // update if backend runs elsewhere
 
 // Create axios instance
 const api = axios.create({

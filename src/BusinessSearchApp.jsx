@@ -31,7 +31,13 @@ import {
   Users,
   Award,
   Mic,
-  X
+  X,
+  Infinity,
+  CheckCircle,
+  Circle,
+  MessageSquare,
+  Save,
+  Calendar
 } from 'lucide-react';
 
 // Example backend JSON (replace with real API call)
@@ -94,7 +100,40 @@ const backendResponse = {
 };
 
 // 🔹 Normalize backend JSON to match component structure
-const normalizeData = (item) => ({
+// const normalizeData = (item) => ({
+//   id: item.id || `${item["First Name"]}-${item["Last Name"]}-${Date.now()}`, // Add unique ID
+//   firstName: item["First Name"] || "",
+//   lastName: item["Last Name"] || "",
+//   brand: item["Brand"] || "",
+//   website: item["Website"] || "",
+//   business: item["Business"] || "",
+//   comment: item["Comment"] || "",
+//   industry: item["Industry"] || "",
+//   location: item["Location"] || "",
+//   title: item["Title"] || "",
+//   liProfile: item["LI profile"] || "",
+//   emailId: item["email id"] || "",
+//   revenuePerMonth:
+//     item["Revenue/month.1"] != null
+//       ? `$${item["Revenue/month.1"].toLocaleString()}`
+//       : item["Revenue/month"] || "",
+//   carriers: item["carriers"] || "",
+//   techStack: item["tech stack"] || "",
+//   postPurchaseTechStack: item["Post Purchase TechStack"] || "",
+//   returnSolutions: item["Return Solutions "] || "",
+//   shipping: item["Shipping"] || "",
+//   insurance: item["Shipping Insurance"] || "",
+//   phoneNo: item["Phone No"] || "",
+//   linkedin: item["LI profile"] || "",
+//   email1Sent: item["Email 1 Sent"] || false,
+//   email2Sent: item["Email 2 Sent"] || false,
+//   email3Sent: item["Email 3 Sent"] || false,
+//   called: item["Called"] || false,
+//   visited: item["Visited"] || false,
+//   feedback: item["Feedback"] || ""
+// });
+const normalizeData = (item, index) => ({
+  id: item.id || `${item["First Name"]}-${item["Last Name"]}-${index}`, // More consistent ID
   firstName: item["First Name"] || "",
   lastName: item["Last Name"] || "",
   brand: item["Brand"] || "",
@@ -122,7 +161,11 @@ const normalizeData = (item) => ({
   email2Sent: item["Email 2 Sent"] || false,
   email3Sent: item["Email 3 Sent"] || false,
   called: item["Called"] || false,
+  // Fix: Check both 'Feedback' and 'feedback' to handle backend variations
+  visited: item["Visited"] || item.visited || false,
+  feedback: item["Feedback"] || item.feedback || ""
 });
+
 
 const BusinessSearchApp = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -134,6 +177,7 @@ const BusinessSearchApp = () => {
   const [data, setData] = useState([]); // ✅ API data state
   const [loading, setLoading] = useState(true);
   const [listening, setListening] = useState(false);
+  const [savingStates, setSavingStates] = useState(new Set()); // Track which items are being saved
   const recognitionRef = useRef(null);
 
 
@@ -175,10 +219,13 @@ const BusinessSearchApp = () => {
   
 
   // 🔹 Process backend data
-  const processedData = useMemo(() => {
-    return data.map(normalizeData);
-  }, [data]);
+  // const processedData = useMemo(() => {
+  //   return data.map(normalizeData);
+  // }, [data]);
 
+  const processedData = useMemo(() => {
+    return data.map((item, index) => normalizeData(item, index));
+  }, [data]);
   //Add a handler to start/stop voice recognition:
   const handleMicClick = () => {
     if (!recognitionRef.current) return;
@@ -199,13 +246,220 @@ const BusinessSearchApp = () => {
 //     return () => clearInterval(timer);
 //   }, []);
 // 🔹 Fetch data from backend
-useEffect(() => {
-    const timer = setInterval(() => {
-      setAnimationStep((prev) => (prev + 1) % 100);
-    }, 50);
-    return () => clearInterval(timer);
-  }, []);
+// useEffect(() => {
+//     const timer = setInterval(() => {
+//       setAnimationStep((prev) => (prev + 1) % 100);
+//     }, 50);
+//     return () => clearInterval(timer);
+//   }, []);
 
+  // Handle visited status change
+  // const handleVisitedChange = async (item, visited) => {
+  //   const itemId = item.id;
+  //   setSavingStates(prev => new Set([...prev, itemId]));
+    
+  //   try {
+  //     await api.post('/update-attendance', {
+  //       attendee_id: itemId,
+  //       visited: visited
+  //     });
+
+  //     // Update local state immediately for better UX
+  //     setData(prevData => 
+  //       prevData.map(dataItem => {
+  //         // const dataItemId = dataItem.id || `${dataItem["First Name"]}-${dataItem["Last Name"]}-${prevData.indexOf(dataItem)}`;
+  //         const dataItemId = dataItem.id ?? `${dataItem["First Name"]}-${dataItem["Last Name"]}-${idx}`;
+
+  //         return dataItemId === itemId 
+  //           ? { ...dataItem, Visited: visited }
+  //           : dataItem;
+  //       })
+  //     );
+  //   } catch (error) {
+  //     console.error('Error updating visited status:', error);
+  //     alert('Failed to update attendance status. Please try again.');
+  //   } finally {
+  //     setSavingStates(prev => {
+  //       const newSet = new Set(prev);
+  //       newSet.delete(itemId);
+  //       return newSet;
+  //     });
+  //   }
+  // };
+// Handle visited status change - Updated for enhanced FastAPI
+const handleVisitedChange = async (item, visited) => {
+  const itemId = item.id;
+  setSavingStates(prev => new Set([...prev, itemId]));
+  
+  try {
+    console.log('Updating visited status:', { itemId, visited });
+    
+    const response = await api.post('/update-attendance', {
+      attendee_id: itemId,
+      visited: visited,
+      feedback: null,
+      save_type: 'visited_update'
+    });
+
+    console.log('✅ Visited status response:', response.data);
+
+    // Update local state with enhanced data
+    setData(prevData => 
+      prevData.map((dataItem, index) => {
+        const dataItemId = dataItem.id ?? `${dataItem["First Name"]}-${dataItem["Last Name"]}-${index}`;
+        return dataItemId === itemId 
+          ? { 
+              ...dataItem, 
+              Visited: visited, 
+              visited: visited,
+              last_updated: response.data.timestamp 
+            }
+          : dataItem;
+      })
+    );
+
+  } catch (error) {
+    console.error('❌ Error updating visited status:', error);
+    let errorMessage = 'Failed to update attendance status. Please try again.';
+    
+    if (error.response?.data?.detail) {
+      errorMessage = `Error: ${error.response.data.detail}`;
+    }
+    
+    alert(errorMessage);
+  } finally {
+    setSavingStates(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemId);
+      return newSet;
+    });
+  }
+};
+
+  // Handle feedback change
+  // const handleFeedbackChange = async (item, feedback) => {
+  //   const itemId = item.id;
+  //   setSavingStates(prev => new Set([...prev, itemId]));
+    
+  //   try {
+  //     console.log('Updating feedback:', { itemId, feedback });
+      
+  //     await api.post('/update-attendance', {
+  //       attendee_id: itemId,
+  //       feedback: feedback
+  //     });
+
+  //     // Update local state immediately
+  //     setData(prevData => 
+  //       prevData.map(dataItem => {
+  //         // const dataItemId = dataItem.id || `${dataItem["First Name"]}-${dataItem["Last Name"]}-${prevData.indexOf(dataItem)}`;
+  //         const dataItemId = dataItem.id ?? `${dataItem["First Name"]}-${dataItem["Last Name"]}-${idx}`;
+  //         return dataItemId === itemId 
+  //           ? { ...dataItem, Feedback: feedback ,feedback: feedback}
+  //           : dataItem;
+  //       })
+  //     );
+  //   } catch (error) {
+  //     console.error('Error updating feedback:', error);
+  //     alert('Failed to update feedback. Please try again.');
+  //   } finally {
+  //     setSavingStates(prev => {
+  //       const newSet = new Set(prev);
+  //       newSet.delete(itemId);
+  //       return newSet;
+  //     });
+  //   }
+  // };
+  // const handleFeedbackChange = async (item, feedback) => {
+  //   const itemId = item.id;
+  //   setSavingStates(prev => new Set([...prev, itemId]));
+    
+  //   try {
+  //     console.log('Updating feedback:', { itemId, feedback });
+      
+  //     const response = await api.post('/update-attendance', {
+  //       attendee_id: itemId,
+  //       feedback: feedback,
+  //       action: 'update_feedback' // Add action type for backend
+  //     });
+  
+  //     console.log('Feedback update response:', response.data);
+  
+  //     // Update local state immediately for better UX
+  //     setData(prevData => 
+  //       prevData.map((dataItem, index) => {
+  //         const dataItemId = dataItem.id ?? `${dataItem["First Name"]}-${dataItem["Last Name"]}-${index}`;
+  //         return dataItemId === itemId 
+  //           ? { ...dataItem, Feedback: feedback, feedback: feedback }
+  //           : dataItem;
+  //       })
+  //     );
+  
+  //     // Show success message
+  //     console.log('Feedback saved successfully');
+      
+  //   } catch (error) {
+  //     console.error('Error updating feedback:', error);
+  //     throw new Error(`Failed to update feedback: ${error.response?.data?.message || error.message}`);
+  //   } finally {
+  //     setSavingStates(prev => {
+  //       const newSet = new Set(prev);
+  //       newSet.delete(itemId);
+  //       return newSet;
+  //     });
+  //   }
+  // };
+  const handleFeedbackChange = async (item, feedback) => {
+    const itemId = item.id;
+    setSavingStates(prev => new Set([...prev, itemId]));
+    
+    try {
+      console.log('🎯 Manual save - Updating feedback:', { itemId, feedback });
+      
+      const response = await api.post('/update-attendance', {
+        attendee_id: itemId,
+        visited: null,
+        feedback: feedback,
+        save_type: 'manual_save'
+      });
+  
+      console.log('✅ Manual save response:', response.data);
+  
+      // Update local state with enhanced data
+      setData(prevData => 
+        prevData.map((dataItem, index) => {
+          const dataItemId = dataItem.id ?? `${dataItem["First Name"]}-${dataItem["Last Name"]}-${index}`;
+          return dataItemId === itemId 
+            ? { 
+                ...dataItem, 
+                Feedback: feedback, 
+                feedback: feedback,
+                last_updated: response.data.timestamp 
+              }
+            : dataItem;
+        })
+      );
+  
+      console.log('✅ Manual save successful:', response.data.message);
+      
+    } catch (error) {
+      console.error('❌ Error in manual save:', error);
+      let errorMessage = 'Failed to save feedback. Please try again.';
+      
+      if (error.response?.data?.detail) {
+        errorMessage = `Error: ${error.response.data.detail}`;
+      }
+      
+      throw new Error(errorMessage);
+    } finally {
+      setSavingStates(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+    }
+  };
+  
   // Get unique industries for filter
   const industries = useMemo(() => {
     return ['all', ...new Set(processedData.map(item => item.industry))];
@@ -360,6 +614,695 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
       </div>
     </div>
   );
+  
+  // const AttendanceSection = ({ item }) => {
+  //   const [localFeedback, setLocalFeedback] = useState(item.feedback || '');
+  //   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  //   const isSaving = savingStates.has(item.id);
+  //   const timeoutRef = useRef(null);
+  
+  //   // Update local feedback when item changes
+  //   useEffect(() => {
+  //     // Reset only when we switch to a different attendee (id changes)
+  //     setLocalFeedback(item.feedback || '');
+  //     setHasUnsavedChanges(false);
+  //   }, [item.id]);
+
+  //   // Handle input changes with auto-save
+  //   const handleFeedbackInputChange = (value) => {
+  //     console.log('✏️ Typing in textarea:', value); // Debug log
+  //     setLocalFeedback(value);
+  //     setHasUnsavedChanges(value !== item.feedback);
+  
+  //     // Clear existing timeout
+  //     if (timeoutRef.current) {
+  //       clearTimeout(timeoutRef.current);
+  //     }
+  
+  //     // Auto-save after 2 seconds of no typing
+  //     timeoutRef.current = setTimeout(async () => {
+  //       if (value !== item.feedback) {
+  //         try {
+  //           console.log('💾 Auto-saving feedback...');
+  //           await handleFeedbackChange(item, value);
+  //           setHasUnsavedChanges(false);
+  //         } catch (error) {
+  //           console.error('Auto-save failed:', error);
+  //         }
+  //       }
+  //     }, 2000);
+  //   };
+  
+  //   // Manual save function
+  //   const handleManualSave = async () => {
+  //     if (!hasUnsavedChanges) return;
+  
+  //     try {
+  //       console.log('🎯 Manual save triggered');
+  //       await handleFeedbackChange(item, localFeedback);
+  //       setHasUnsavedChanges(false);
+        
+  //       // Clear auto-save timeout since we manually saved
+  //       if (timeoutRef.current) {
+  //         clearTimeout(timeoutRef.current);
+  //       }
+  //     } catch (error) {
+  //       console.error('Manual save failed:', error);
+  //       alert('Failed to save feedback. Please try again.');
+  //     }
+  //   };
+  
+  //   // Cleanup timeout on unmount
+  //   useEffect(() => {
+  //     return () => {
+  //       if (timeoutRef.current) {
+  //         clearTimeout(timeoutRef.current);
+  //       }
+  //     };
+  //   }, []);
+  
+  //   return (
+  //     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200 space-y-4">
+  //       <h4 className="flex items-center text-lg font-bold text-gray-800 mb-4">
+  //         <Calendar className="w-5 h-5 mr-2" />
+  //         Event Attendance
+  //       </h4>
+        
+  //       {/* Visited Status - Same as before */}
+  //       <div className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm">
+  //         <div className="flex items-center space-x-3">
+  //           <div className={`p-2 rounded-lg ${item.visited ? 'bg-green-100' : 'bg-gray-100'}`}>
+  //             {item.visited ? (
+  //               <CheckCircle className="w-5 h-5 text-green-600" />
+  //             ) : (
+  //               <Circle className="w-5 h-5 text-gray-400" />
+  //             )}
+  //           </div>
+  //           <div>
+  //             <p className="font-medium text-gray-900">Event Attendance</p>
+  //             <p className="text-sm text-gray-500">
+  //               {item.visited ? 'Attended the event' : 'Did not attend'}
+  //             </p>
+  //           </div>
+  //         </div>
+          
+  //         <div className="flex items-center space-x-2">
+  //           {isSaving && <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>}
+  //           <label className="relative inline-flex items-center cursor-pointer">
+  //             <input
+  //               type="checkbox"
+  //               className="sr-only peer"
+  //               checked={item.visited || false}
+  //               onChange={(e) => {
+  //                 console.log('Toggle clicked:', e.target.checked);
+  //                 handleVisitedChange(item, e.target.checked);
+  //               }}
+  //               // disabled={isSaving}
+  //             />
+  //             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+  //           </label>
+  //         </div>
+  //       </div>
+  
+  //       {/* FIXED: Always editable feedback section */}
+  //       <div className="p-4 bg-white rounded-xl shadow-sm">
+  //         <div className="flex items-center justify-between mb-3">
+  //           <div className="flex items-center space-x-2">
+  //             <MessageSquare className="w-5 h-5 text-blue-600" />
+  //             <label className="font-medium text-gray-900">Remarks / Feedback</label>
+  //             {isSaving && (
+  //               <div className="flex items-center space-x-2">
+  //                 <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+  //                 <span className="text-xs text-blue-600">Saving...</span>
+  //               </div>
+  //             )}
+  //           </div>
+            
+  //           {/* Manual Save Button (shows when there are unsaved changes) */}
+  //           {hasUnsavedChanges && (
+  //             <button
+  //               onClick={handleManualSave}
+  //               // disabled={isSaving}
+  //               className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+  //             >
+  //               <Save className="w-3 h-3 mr-1" />
+  //               Save Now
+  //             </button>
+  //           )}
+  //         </div>
+          
+  //         {/* ALWAYS EDITABLE TEXTAREA - NO READ-ONLY MODE */}
+  //         <textarea
+  //           value={localFeedback}
+  //           onChange={(e) => {
+  //             console.log('📝 Textarea onChange triggered:', e.target.value);
+  //             handleFeedbackInputChange(e.target.value);
+  //           }}
+  //           // onFocus={() => console.log('🎯 Textarea focused')}
+  //           onClick={() => console.log('👆 Textarea clicked')}
+  //           placeholder="Add any remarks, feedback, or notes about this attendee..."
+  //           className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+  //           rows={3}
+  //           // disabled={isSaving}
+  //           style={{ minHeight: '80px' }} // Ensure minimum height
+  //         />
+          
+  //         {/* Status Messages */}
+  //         <div className="flex items-center justify-between mt-2">
+  //           <p className="text-xs text-gray-500">
+  //             {hasUnsavedChanges 
+  //               ? 'Changes will be saved automatically in 2 seconds...' 
+  //               : 'Changes are saved automatically as you type'}
+  //           </p>
+            
+  //           {hasUnsavedChanges && (
+  //             <div className="flex items-center text-orange-600">
+  //               <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
+  //               <span className="text-xs">Unsaved changes</span>
+  //             </div>
+  //           )}
+  //         </div>
+  
+  //         {/* Debug info to help troubleshoot */}
+  //         <div className="mt-2 text-xs text-gray-400 font-mono">
+  //           Debug: Can type = {!isSaving ? '✅ YES' : '❌ NO (saving)'}, 
+  //           Value length = {localFeedback.length}, 
+  //           Has changes = {hasUnsavedChanges.toString()}
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // };
+
+  // const AttendanceSection = ({ item }) => {
+  //   const [localFeedback, setLocalFeedback] = useState(item.feedback || '');
+  //   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  //   const isSaving = savingStates.has(item.id);
+  //   const timeoutRef = useRef(null);
+  
+  //   // Update local feedback when item changes
+  //   useEffect(() => {
+  //     setLocalFeedback(item.feedback || '');
+  //     setHasUnsavedChanges(false);
+  //   }, [item.id, item.feedback]); // Added item.feedback as dependency
+  
+  //   // Handle input changes with auto-save
+  //   const handleFeedbackInputChange = (value) => {
+  //     console.log('✏️ Typing in textarea:', value);
+  //     setLocalFeedback(value);
+  //     setHasUnsavedChanges(value !== (item.feedback || ''));
+  
+  //     // Clear existing timeout
+  //     if (timeoutRef.current) {
+  //       clearTimeout(timeoutRef.current);
+  //     }
+  
+  //     // Auto-save after 2 seconds of no typing
+  //     timeoutRef.current = setTimeout(async () => {
+  //       if (value !== (item.feedback || '')) {
+  //         try {
+  //           console.log('💾 Auto-saving feedback...');
+  //           await handleFeedbackChange(item, value);
+  //           setHasUnsavedChanges(false);
+  //         } catch (error) {
+  //           console.error('Auto-save failed:', error);
+  //         }
+  //       }
+  //     }, 2000);
+  //   };
+  
+  //   // Manual save function
+  //   const handleManualSave = async () => {
+  //     if (!hasUnsavedChanges || isSaving) return;
+  
+  //     try {
+  //       console.log('🎯 Manual save triggered');
+  //       await handleFeedbackChange(item, localFeedback);
+  //       setHasUnsavedChanges(false);
+        
+  //       // Clear auto-save timeout since we manually saved
+  //       if (timeoutRef.current) {
+  //         clearTimeout(timeoutRef.current);
+  //       }
+  //     } catch (error) {
+  //       console.error('Manual save failed:', error);
+  //       alert('Failed to save feedback. Please try again.');
+  //     }
+  //   };
+  
+  //   // Cleanup timeout on unmount
+  //   useEffect(() => {
+  //     return () => {
+  //       if (timeoutRef.current) {
+  //         clearTimeout(timeoutRef.current);
+  //       }
+  //     };
+  //   }, []);
+  
+  //   return (
+  //     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200 space-y-4">
+  //       <h4 className="flex items-center text-lg font-bold text-gray-800 mb-4">
+  //         <Calendar className="w-5 h-5 mr-2" />
+  //         Event Attendance
+  //       </h4>
+        
+  //       {/* Visited Status */}
+  //       <div className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm">
+  //         <div className="flex items-center space-x-3">
+  //           <div className={`p-2 rounded-lg ${item.visited ? 'bg-green-100' : 'bg-gray-100'}`}>
+  //             {item.visited ? (
+  //               <CheckCircle className="w-5 h-5 text-green-600" />
+  //             ) : (
+  //               <Circle className="w-5 h-5 text-gray-400" />
+  //             )}
+  //           </div>
+  //           <div>
+  //             <p className="font-medium text-gray-900">Event Attendance</p>
+  //             <p className="text-sm text-gray-500">
+  //               {item.visited ? 'Attended the event' : 'Did not attend'}
+  //             </p>
+  //           </div>
+  //         </div>
+          
+  //         <div className="flex items-center space-x-2">
+  //           {isSaving && <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>}
+  //           <label className="relative inline-flex items-center cursor-pointer">
+  //             <input
+  //               type="checkbox"
+  //               className="sr-only peer"
+  //               checked={item.visited || false}
+  //               onChange={(e) => {
+  //                 console.log('Toggle clicked:', e.target.checked);
+  //                 handleVisitedChange(item, e.target.checked);
+  //               }}
+  //               disabled={isSaving}
+  //             />
+  //             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+  //           </label>
+  //         </div>
+  //       </div>
+  
+  //       {/* FIXED: Feedback section with proper event handling */}
+  //       <div className="p-4 bg-white rounded-xl shadow-sm">
+  //         <div className="flex items-center justify-between mb-3">
+  //           <div className="flex items-center space-x-2">
+  //             <MessageSquare className="w-5 h-5 text-blue-600" />
+  //             <label className="font-medium text-gray-900">Remarks / Feedback</label>
+  //             {isSaving && (
+  //               <div className="flex items-center space-x-2">
+  //                 <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+  //                 <span className="text-xs text-blue-600">Saving...</span>
+  //               </div>
+  //             )}
+  //           </div>
+            
+  //           {/* Manual Save Button */}
+  //           {hasUnsavedChanges && !isSaving && (
+  //             <button
+  //               onClick={handleManualSave}
+  //               className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+  //             >
+  //               <Save className="w-3 h-3 mr-1" />
+  //               Save Now
+  //             </button>
+  //           )}
+  //         </div>
+          
+  //         {/* FIXED TEXTAREA - Removed all blocking attributes */}
+  //         <textarea
+  //           value={localFeedback}
+  //           onChange={(e) => {
+  //             console.log('📝 Textarea onChange triggered:', e.target.value);
+  //             handleFeedbackInputChange(e.target.value);
+  //           }}
+  //           onFocus={() => console.log('🎯 Textarea focused')}
+  //           onClick={() => console.log('👆 Textarea clicked')}
+  //           placeholder="Add any remarks, feedback, or notes about this attendee..."
+  //           className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+  //           rows={3}
+  //           disabled={false} // Explicitly set to false
+  //           readOnly={false} // Explicitly set to false
+  //           style={{ 
+  //             minHeight: '80px',
+  //             pointerEvents: 'auto', // Ensure pointer events work
+  //             userSelect: 'text' // Ensure text selection works
+  //           }}
+  //         />
+          
+  //         {/* Status Messages */}
+  //         <div className="flex items-center justify-between mt-2">
+  //           <p className="text-xs text-gray-500">
+  //             {isSaving 
+  //               ? 'Saving changes...'
+  //               : hasUnsavedChanges 
+  //                 ? 'Changes will be saved automatically in 2 seconds...' 
+  //                 : 'Changes are saved automatically as you type'
+  //             }
+  //           </p>
+            
+  //           {hasUnsavedChanges && !isSaving && (
+  //             <div className="flex items-center text-orange-600">
+  //               <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
+  //               <span className="text-xs">Unsaved changes</span>
+  //             </div>
+  //           )}
+  //         </div>
+  
+  //         {/* Debug info */}
+  //         <div className="mt-2 text-xs text-gray-400 font-mono">
+  //           Debug: Saving = {isSaving.toString()}, 
+  //           Value length = {localFeedback.length}, 
+  //           Has changes = {hasUnsavedChanges.toString()},
+  //           Item feedback = "{item.feedback || 'empty'}"
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // };
+  
+  const AttendanceSection = ({ item }) => {
+    const [localFeedback, setLocalFeedback] = useState(item.feedback || '');
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const isSaving = savingStates.has(item.id);
+    const timeoutRef = useRef(null);
+    const recognitionRef = useRef(null);
+  
+    useEffect(() => {
+      setLocalFeedback(item.feedback || '');
+      setHasUnsavedChanges(false);
+    }, [item.id, item.feedback]);
+  
+    // Initialize Speech Recognition for this textarea
+    useEffect(() => {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return;
+  
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.continuous = true; // Allow continuous speech
+  
+      recognition.onresult = (event) => {
+        let transcript = '';
+        
+        // Get all results from the current session
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            transcript += event.results[i][0].transcript + ' ';
+          }
+        }
+  
+        if (transcript.trim()) {
+          // Append to existing feedback instead of replacing
+          const newFeedback = localFeedback + (localFeedback ? ' ' : '') + transcript.trim();
+          setLocalFeedback(newFeedback);
+          setHasUnsavedChanges(newFeedback !== (item.feedback || ''));
+          
+          // Trigger auto-save
+          handleFeedbackInputChange(newFeedback);
+        }
+      };
+  
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        
+        // Show user-friendly error messages
+        if (event.error === 'no-speech') {
+          alert('No speech detected. Please try again.');
+        } else if (event.error === 'not-allowed') {
+          alert('Microphone access denied. Please allow microphone permissions.');
+        } 
+        // else {
+        //   alert('Speech recognition error. Please try again.');
+        // }
+      };
+  
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+  
+      recognitionRef.current = recognition;
+  
+      // Cleanup
+      return () => {
+        if (recognitionRef.current) {
+          recognitionRef.current.abort();
+        }
+      };
+    }, [localFeedback, item.feedback]);
+  
+    const handleFeedbackInputChange = (value) => {
+      setLocalFeedback(value);
+      setHasUnsavedChanges(value !== (item.feedback || ''));
+  
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+  
+      timeoutRef.current = setTimeout(async () => {
+        if (value !== (item.feedback || '')) {
+          try {
+            await handleFeedbackChange(item, value);
+            setHasUnsavedChanges(false);
+          } catch (error) {
+            console.error('Auto-save failed:', error);
+          }
+        }
+      }, 2000);
+    };
+  
+    const handleManualSave = async () => {
+      if (!hasUnsavedChanges || isSaving) return;
+      try {
+        await handleFeedbackChange(item, localFeedback);
+        setHasUnsavedChanges(false);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      } catch (error) {
+        console.error('Manual save failed:', error);
+        alert('Failed to save feedback. Please try again.');
+      }
+    };
+  
+    const handleVoiceToggle = () => {
+      if (!recognitionRef.current) {
+        alert('Speech recognition is not supported in this browser.');
+        return;
+      }
+  
+      if (isListening) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+      } else {
+        try {
+          recognitionRef.current.start();
+          setIsListening(true);
+        } catch (error) {
+          console.error('Failed to start speech recognition:', error);
+          alert('Failed to start voice recognition. Please try again.');
+        }
+      }
+    };
+  
+    const clearFeedback = () => {
+      if (confirm('Are you sure you want to clear all feedback?')) {
+        setLocalFeedback('');
+        setHasUnsavedChanges(true);
+        handleFeedbackInputChange('');
+      }
+    };
+  
+    useEffect(() => {
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        if (recognitionRef.current && isListening) {
+          recognitionRef.current.abort();
+        }
+      };
+    }, [isListening]);
+  
+    return (
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200 space-y-4">
+        <h4 className="flex items-center text-lg font-bold text-gray-800 mb-4">
+          <Calendar className="w-5 h-5 mr-2" />
+          Event Attendance
+        </h4>
+        
+        {/* Visited Status */}
+        <div className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm">
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${item.visited ? 'bg-green-100' : 'bg-gray-100'}`}>
+              {item.visited ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <Circle className="w-5 h-5 text-gray-400" />
+              )}
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Event Attendance</p>
+              <p className="text-sm text-gray-500">
+                {item.visited ? 'Attended the event' : 'Did not attend'}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {isSaving && <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>}
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={item.visited || false}
+                onChange={(e) => handleVisitedChange(item, e.target.checked)}
+                disabled={isSaving}
+              />
+              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+        </div>
+  
+        {/* Enhanced Feedback section with Voice Input */}
+        <div className="p-4 bg-white rounded-xl shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="w-5 h-5 text-blue-600" />
+              <label className="font-medium text-gray-900">Remarks / Feedback</label>
+              {isSaving && (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-xs text-blue-600">Saving...</span>
+                </div>
+              )}
+              {isListening && (
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-red-600 font-medium">Listening...</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {/* Voice Input Button */}
+              <button
+                onClick={handleVoiceToggle}
+                disabled={isSaving}
+                className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  isListening
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                title={isListening ? 'Stop voice input' : 'Start voice input'}
+              >
+                <Mic className="w-3 h-3 mr-1" />
+                {isListening ? 'Stop' : 'Voice'}
+              </button>
+  
+              {/* Clear Button */}
+              {localFeedback && (
+                <button
+                  onClick={clearFeedback}
+                  disabled={isSaving}
+                  className="flex items-center px-3 py-1.5 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Clear all feedback"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Clear
+                </button>
+              )}
+  
+              {/* Manual Save Button */}
+              {hasUnsavedChanges && !isSaving && (
+                <button
+                  onClick={handleManualSave}
+                  className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+                >
+                  <Save className="w-3 h-3 mr-1" />
+                  Save Now
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Enhanced textarea with voice input indicator */}
+          <div className="relative">
+            <textarea
+              value={localFeedback}
+              onChange={(e) => handleFeedbackInputChange(e.target.value)}
+              placeholder={isListening 
+                ? "Listening for your voice input..." 
+                : "Type or click 'Voice' to speak your remarks and feedback..."
+              }
+              className={`w-full p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white ${
+                isListening 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-200'
+              }`}
+              rows={4}
+              disabled={false}
+              readOnly={false}
+              style={{ minHeight: '100px' }}
+            />
+            
+            {/* Voice Input Indicator */}
+            {isListening && (
+              <div className="absolute top-2 right-2 flex items-center space-x-2 bg-red-100 px-2 py-1 rounded-full">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-red-700 font-medium">Recording</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Status Messages */}
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center space-x-4">
+              <p className="text-xs text-gray-500">
+                {isSaving 
+                  ? 'Saving changes...'
+                  : hasUnsavedChanges 
+                    ? 'Changes will be saved automatically in 2 seconds...' 
+                    : 'Changes are saved automatically as you type'
+                }
+              </p>
+              
+              {isListening && (
+                <p className="text-xs text-red-600 font-medium">
+                  Speak clearly. Your speech will be added to the existing text.
+                </p>
+              )}
+            </div>
+            
+            {hasUnsavedChanges && !isSaving && (
+              <div className="flex items-center text-orange-600">
+                <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
+                <span className="text-xs">Unsaved changes</span>
+              </div>
+            )}
+          </div>
+  
+          {/* Character count and voice status */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+            <span className="text-xs text-gray-400">
+              {localFeedback.length} characters
+            </span>
+            
+            <div className="text-xs text-gray-400">
+              Voice input: {
+                !window.SpeechRecognition && !window.webkitSpeechRecognition 
+                  ? 'Not supported' 
+                  : 'Available'
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Calculate summary stats
   const totalRevenue = processedData.reduce((sum, item) => {
@@ -367,12 +1310,27 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
   }, 0);
   
   const avgEngagement = Math.round(
-    processedData.reduce((sum, item) => sum + getEngagementScore(item), 0) / processedData.length
+    processedData.reduce((sum, item) => sum + getEngagementScore(item), 0) / (processedData.length || 1)
   );
 
   const highValueLeads = processedData.filter(item => 
     (parseInt(item.revenuePerMonth.replace(/[$,]/g, '')) || 0) > 40000
   ).length;
+
+  const attendanceRate = Math.round(
+    (processedData.filter(item => item.visited).length / (processedData.length || 1)) * 100
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading attendee data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden">
@@ -386,17 +1344,38 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-4 mb-4">
-            {/* <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl shadow-lg"> className="p-3 bg-gray-100 rounded-2xl shadow-lg"*/}
-            <div > 
-              {/* <Activity className="w-8 h-8 text-white" /> */}
-              {/* <img src="/LateShipment-Logo.svg" alt="Late Shipment Logo" className="inline-block mr-3 w-60 h-55" /> */}
+           
+            <div className="py-8 px-4"> {/* Adds top/bottom padding + side spacing */}
+            <h1 className="flex items-center space-x-3 text-4xl font-bold">
+                {/* Left Logo */}
+                <img
+                src="/LateShipment-Logo.svg"
+                alt="Left Logo"
+                className="h-12 w-auto object-contain"
+                />
+
+                {/* Handshake */}
+                {/* <span className="text-3xl">🤝</span> */}
+                <Infinity className="w-16 h-16 text-gray-700" />   
+                {/* Right Logo */}
+                <img
+                src="/Ecom-North-logo.svg"
+                alt="Ecom North Logo"
+                className="h-12 w-auto object-contain"
+                />
+
+                {/* Gradient only on text */}
+                <span className="bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 
+                                bg-clip-text text-transparent">
+                Toronto Summit – Canada
+                </span>
+            </h1>
+
+            <p className="mt-3 text-gray-600 text-lg">
+                {/* Advanced analytics for Lateshipment business relationships */}
+            </p>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
-              <img src="/Ecom-North-logo.svg" alt="Ecom North Logo" className="inline-block mr-3 w-20 h-30" />Toronto Summit-Canada
-              </h1>
-              <p className="text-gray-600 text-lg">Advanced analytics for Lateshipment business relationships</p>
-            </div>
+
           </div>
           
           {/* Summary Stats */}
@@ -423,12 +1402,12 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
               color="purple"
             />
             <MetricCard 
-              icon={UserCheck} //BarChart3
-              title="Avg Engagement"
-              value={`${avgEngagement}%`}
-            //   trend="5"
+              icon={UserCheck}
+              title="Attendance Rate"
+              value={`${attendanceRate}%`}
               color="orange"
             />
+
           </div>
         </div>
 
@@ -546,7 +1525,7 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
             
             return (
               <div 
-                key={index} 
+                key={item.id || index} 
                 className={`group relative overflow-hidden transition-all duration-500 hover:scale-[1.02] ${
                   viewMode === 'cards' 
                     ? 'bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 hover:shadow-2xl'
@@ -557,16 +1536,7 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
                   transition: 'transform 0.1s ease-in-out'
                 }}
               >
-                {/* High Value Lead Badge */}
-                {/* {isHighValue && (
-                  <div className="absolute top-4 right-4 z-20">
-                    <div className="flex items-center px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full text-xs font-bold shadow-lg">
-                      <Star className="w-3 h-3 mr-1" />
-                      High Value
-                    </div>
-                  </div>
-                )} */}
-
+  
                 {/* Header Section */}
                 <div className={`relative ${viewMode === 'cards' ? 'p-8' : 'p-6'} bg-gradient-to-r from-gray-50/50 to-blue-50/50`}>
                   <div className="flex items-start justify-between">
@@ -577,7 +1547,7 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
                           {item.firstName[0]}{item.lastName[0]}
                         </div>
                         <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-4 border-white flex items-center justify-center ${
-                          engagementScore > 75 ? 'bg-green-500' : engagementScore > 50 ? 'bg-yellow-500' : 'bg-red-500'
+                          item.visited ? 'bg-green-500' : 'bg-gray-400'
                         }`}>
                           <div className="w-2 h-2 bg-white rounded-full"></div>
                         </div>
@@ -656,15 +1626,15 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
                         <span className="text-sm font-semibold text-purple-800">LinkedIn</span>
                       </div>
                       <p>
-      <a
-        href={item.liProfile}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-purple-700"
-      >
-        View Profile
-      </a>
-    </p>
+                        <a
+                          href={item.liProfile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-purple-700"
+                        >
+                          View Profile
+                        </a>
+                      </p>
                     </div>
                     
                     <div className="group bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4 border border-orange-200 hover:border-orange-300 transition-all duration-300 hover:scale-105">
@@ -676,7 +1646,12 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
                     </div>
                   </div>
 
-                  {/* Enhanced Communication Status */}
+                  {/* Attendance Section */}
+                  <div className="mb-6">
+                    <AttendanceSection item={item} />
+                  </div>
+
+                  {/* Communication Status */}
                   <div className="mb-6">
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                       <Activity className="w-5 h-5 mr-2" />
@@ -816,18 +1791,6 @@ const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
           </div>
         )}
 
-        {/* Footer */}
-        {/* <div className="mt-16 text-center">
-          <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 border border-white/20">
-            <h3 className="text-lg font-bold text-gray-800 mb-3">Backend Integration Guide</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Replace the sample data with your API endpoint. Your backend should return comma-separated strings:
-            </p>
-            <div className="bg-gray-100 rounded-2xl p-4 font-mono text-xs text-gray-700 overflow-x-auto">
-              "First Name, Last Name, Brand, Website, Business, Comment, Industry, Location, Title, LI profile, email id, Revenue/month, Revenue/month carriers, tech stack, Post Purchase TechStack, Return Solutions, Shipping, Insurance, Phone No, Linkedin, Email 1 Sent, Email 2 Sent, Email 3 Sent, Called"
-            </div>
-          </div>
-        </div> */}
       </div>
     </div>
   );

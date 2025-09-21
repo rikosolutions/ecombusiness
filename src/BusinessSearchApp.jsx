@@ -47,7 +47,7 @@ import {
   Plus,
   CookingPot,
   Utensils,Store,
-  Briefcase,Container
+  Briefcase,Container,RefreshCw
 } from 'lucide-react';
 
 // 🔹 Updated normalize function for new backend structure
@@ -101,7 +101,7 @@ const LeadFormModal = ({ isOpen, onClose, editingLead, onSave }) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    company: '',
+    website: '',
     email: '',
     comments: ''
   });
@@ -113,7 +113,7 @@ const LeadFormModal = ({ isOpen, onClose, editingLead, onSave }) => {
       setFormData({
         firstName: editingLead.firstName || '',
         lastName: editingLead.lastName || '',
-        company: editingLead.company || '',
+        website: editingLead.website || '',
         email: editingLead.email || '',
         comments: editingLead.comments || ''
       });
@@ -121,7 +121,7 @@ const LeadFormModal = ({ isOpen, onClose, editingLead, onSave }) => {
       setFormData({
         firstName: '',
         lastName: '',
-        company: '',
+        website: '',
         email: '',
         comments: ''
       });
@@ -221,8 +221,8 @@ const LeadFormModal = ({ isOpen, onClose, editingLead, onSave }) => {
             </label>
             <input
               type="text"
-              value={formData.company}
-              onChange={(e) => setFormData({...formData, company: e.target.value})}
+              value={formData.website}
+              onChange={(e) => setFormData({...formData, website: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Lateshipment (optional)"
             />
@@ -318,8 +318,8 @@ const LeadsListModal = ({ isOpen, onClose, leads, onEdit, onDelete, loading }) =
             </div>
           ) : (
             <div className="space-y-4">
-              {leads.map((lead) => (
-                <div key={lead.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              {leads.map((lead,index) => (
+                <div key={lead.id || index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">
@@ -328,10 +328,10 @@ const LeadsListModal = ({ isOpen, onClose, leads, onEdit, onDelete, loading }) =
                       {lead.email && (
                         <p className="text-sm text-gray-600 mt-1">{lead.email}</p>
                       )}
-                      {lead.company && (
+                      {lead.website && (
                         <p className="text-sm text-blue-600 mt-1">
-                          <a href={lead.company} target="_blank" rel="noopener noreferrer">
-                            {lead.company}
+                          <a href={lead.website} target="_blank" rel="noopener noreferrer">
+                            {lead.website}
                           </a>
                         </p>
                       )}
@@ -690,6 +690,8 @@ const BusinessSearchApp = () => {
           const aRev = parseInt(a.revenuePerMonth.replace(/[$,]/g, '')) || 0;
           const bRev = parseInt(b.revenuePerMonth.replace(/[$,]/g, '')) || 0;
           return bRev - aRev;
+        case 'brand':
+          return a.brand.localeCompare(b.brand);
         case 'name':
           return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
         case 'batch':
@@ -730,21 +732,36 @@ const BusinessSearchApp = () => {
     blue: "from-blue-500 to-blue-600",
   };
   
-  const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
-    <div className="relative overflow-hidden bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:scale-105 hover:shadow-xl">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${colorMap[color]} shadow-lg`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
+  // const MetricCard = ({ icon: Icon, title, value, trend, color = 'blue' }) => (
+  //   <div className="relative overflow-hidden bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:scale-105 hover:shadow-xl">
+  //     <div className="flex items-center justify-between mb-4">
+  //       <div className={`p-3 rounded-xl bg-gradient-to-br ${colorMap[color]} shadow-lg`}>
+  //         <Icon className="w-6 h-6 text-white" />
+  //       </div>
+  //       {trend && (
+  //         <div className="flex items-center text-green-600">
+  //           <TrendingUp className="w-4 h-4 mr-1" />
+  //           <span className="text-sm font-medium">+{trend}%</span>
+  //         </div>
+  //       )}
+  //     </div>
+  //     <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
+  //     <p className="text-2xl font-bold text-gray-900">{value}</p>
+  //   </div>
+  // );
+
+  const MetricCard = ({ title, value, trend, color = 'blue' }) => (
+    <div className="relative overflow-hidden bg-gradient-to-br from-white to-gray-50 rounded-xl p-4 border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:scale-105 hover:shadow-lg">
+      <div className="flex items-center justify-between mb-2">
         {trend && (
           <div className="flex items-center text-green-600">
-            <TrendingUp className="w-4 h-4 mr-1" />
-            <span className="text-sm font-medium">+{trend}%</span>
+            <TrendingUp className="w-3 h-3 mr-1" />
+            <span className="text-xs font-medium">+{trend}%</span>
           </div>
         )}
       </div>
-      <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <h3 className="text-xs font-medium text-gray-600 mb-1">{title}</h3>
+      <p className="text-xl font-bold text-gray-900">{value}</p>
     </div>
   );
 
@@ -1282,26 +1299,20 @@ const BusinessSearchApp = () => {
                   alt="Left Logo"
                   className="h-12 w-auto object-contain"
                 />
-                <Infinity className="w-16 h-16 text-gray-700" />   
+                <Infinity className="w-10 h-10 text-gray-700" />   
                 <img
                   src="/Ecom-North-logo.svg"
                   alt="Ecom North Logo"
-                  className="h-12 w-auto object-contain"
+                  className="h-7 w-auto object-contain"
                 />
-                <span className="bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-xl text-transparent">
                   Toronto Summit – Canada
                 </span>
               </h1>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <MetricCard 
-              icon={Activity}
-              title="Active Leads"
-              value={processedData.length}
-              color="yellow"
-            />
+         
              {/* <MetricCard 
               icon={DollarSign}
               title="Booth"
@@ -1320,6 +1331,13 @@ const BusinessSearchApp = () => {
               value={`${attendanceRate}`}
               color="orange"
             /> */}
+            {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <MetricCard 
+              icon={Activity}
+              title="Active Leads"
+              value={processedData.length}
+              color="yellow"
+            />
             <div 
               className={`cursor-pointer transition-all ${filterBooth === 'yes' ? 'ring-3 ring-green-800' : ''}`}
               onClick={() => setFilterBooth(filterBooth === 'yes' ? 'all' : 'yes')}
@@ -1353,7 +1371,44 @@ const BusinessSearchApp = () => {
                 color="orange"
               />
             </div>
+          </div> */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <MetricCard
+            title="Active Leads"
+            value={processedData.length}
+            color="yellow"
+          />
+          <div
+            className={`cursor-pointer transition-all ${filterBooth === 'yes' ? 'ring-2 ring-green-500' : ''}`}
+            onClick={() => setFilterBooth(filterBooth === 'yes' ? 'all' : 'yes')}
+          >
+            <MetricCard
+              title="Booth"
+              value={`${boothRate}`}
+              color="green"
+            />
           </div>
+          <div
+            className={`cursor-pointer transition-all ${filterDinner === 'yes' ? 'ring-2 ring-purple-500' : ''}`}
+            onClick={() => setFilterDinner(filterDinner === 'yes' ? 'all' : 'yes')}
+          >
+            <MetricCard
+              title="Dinner"
+              value={`${dinnerRate}`}
+              color="purple"
+            />
+          </div>
+          <div
+            className={`cursor-pointer transition-all ${filterAttendance === 'attended' ? 'ring-2 ring-orange-500' : ''}`}
+            onClick={() => setFilterAttendance(filterAttendance === 'attended' ? 'all' : 'attended')}
+          >
+            <MetricCard
+              title="Attendance"
+              value={`${attendanceRate}`}
+              color="orange"
+            />
+          </div>
+        </div>
         </div>
 
         <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20 mb-8">
@@ -1431,7 +1486,7 @@ const BusinessSearchApp = () => {
               >
                 {batches.map(batch => (
                   <option key={batch} value={batch}>
-                    {batch === 'all' ? 'Batches' : batch}
+                    {batch === 'all' ? 'Category' : batch}
                   </option>
                 ))}
               </select>
@@ -1446,9 +1501,9 @@ const BusinessSearchApp = () => {
                 className="flex-1 py-4 px-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm bg-white/90 backdrop-blur appearance-none"
               >
                 <option value="revenue" disabled>Sort By</option>
-                <option value="revenue">Revenue</option>
+                <option value="brand">Brand</option>
                 <option value="name">Name</option>
-                <option value="batch">Batch</option>
+                <option value="batch">Category</option>
               </select>
                 {/* Add Lead Icon */}
     <button
@@ -1505,6 +1560,22 @@ const BusinessSearchApp = () => {
               </div>
             )}
           </div>
+          {/* NEW: Clear All Filters Button */}
+  <button
+    onClick={() => {
+      setSearchTerm('');
+      setFilterIndustry('all');
+      setFilterBatch('all');
+      setFilterBooth('all');
+      setFilterDinner('all');
+      setFilterAttendance('all');
+      setSortBy('name'); // Reset to default
+    }}
+    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl"
+  >
+    <RefreshCw className="w-4 h-4" />
+    <span className="font-medium">Clear Filters/Sort</span>
+  </button>
         </div>
 
         {/* <div className={`${viewMode === 'cards' ? 'space-y-8' : 'space-y-4'}`}>
@@ -1780,9 +1851,10 @@ const BusinessSearchApp = () => {
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-1">
                   {item.firstName} {item.lastName}
+                  <span className="text-sm font-bold text-gray-600 mb-1"> , {item.title}</span>
                 </h2>
                 <div className="flex flex-wrap gap-2 mb-2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium bg-gradient-to-r from-blue-600 to-sky-700 text-white shadow-sm">
+                  <span className="inline-flex items-center px-3 py-1 rounded-xl text-ms font-medium bg-gradient-to-r from-blue-600 to-sky-700 text-white shadow-sm">
                     <Building className="w-3 h-3 mr-1" />
                     {item.brand}
                   </span>
@@ -1797,10 +1869,10 @@ const BusinessSearchApp = () => {
                       {item.website}
                     </a>
                   </span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm">
+                  {/* <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm">
                     <Award className="w-3 h-3 mr-1" />
                     {item.title}
-                  </span>
+                  </span> */}
                   {item.monthlyShippingVolume && (
                     <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium bg-gradient-to-r from-green-500 to-green-600 text-white shadow-sm" title="Monthly Shipping Volume">
                       <Container className="w-3 h-3 mr-1" />
@@ -1836,7 +1908,7 @@ const BusinessSearchApp = () => {
                   )}
                   {item.dinner === 'Yes' && (
                     <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded-md text-xs font-medium">
-                      Dinner: {item.dinner}
+                      Dinner
                     </span>
                   )}
                   {item.booth  === 'Yes' &&(
@@ -1845,7 +1917,7 @@ const BusinessSearchApp = () => {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center text-sm text-gray-600">
+                <div className="flex items-center text-base text-gray-600">
                   <MapPin className="w-3 h-3 mr-1" />
                   {item.location}
                 </div>
@@ -1854,7 +1926,7 @@ const BusinessSearchApp = () => {
             
             <div className="text-right space-y-2">
               <div>
-                <div className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                <div className="text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                   {item.revenuePerMonth}
                 </div>
                 <div className="text-xs text-gray-500">Monthly Revenue</div>

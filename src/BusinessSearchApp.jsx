@@ -662,15 +662,14 @@ const BusinessSearchApp = () => {
     }
 
     // ADD THESE NEW FILTER CONDITIONS:
-  if (filterBooth !== 'all') {
+ if (filterBooth !== 'all') {
     filtered = filtered.filter(item => {
-      return item.booth && item.booth.trim() === "Yes";
+      return item.booth && (item.booth.trim() === "Yes" || item.booth.trim() === "YES");
     });
   }
-
-  if (filterDinner !== 'all') {
+   if (filterDinner !== 'all') {
     filtered = filtered.filter(item => {
-      return item.dinner && item.dinner.trim() === "Yes";
+      return item.dinner &&  (item.dinner.trim() === "Yes" || item.dinner.trim() === "YES");
     });
   }
 
@@ -1260,15 +1259,15 @@ const BusinessSearchApp = () => {
     (processedData.filter(item => item.visited).length) 
   );
 
-  const boothRate = Math.round(
+const boothRate = Math.round(
     (processedData.filter(item => {
-      return item.booth && item.booth.trim() === "Yes";
+      return item.booth && (item.booth.trim() === "Yes" || item.booth.trim() === "YES"); //(item.booth.trim() === "Yes" || item.booth.trim() === "YES")
     }).length)
   );
   
   const dinnerRate = Math.round(
     (processedData.filter(item => {
-      return item.dinner && item.dinner.trim() === "Yes";
+      return item.dinner && (item.dinner.trim() === "Yes" || item.dinner.trim() === "YES");
     }).length)
   );
 
